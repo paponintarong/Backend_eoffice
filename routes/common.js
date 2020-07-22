@@ -3,16 +3,16 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const router = express.Router();
-
+const jwt = require("jsonwebtoken");
 // เพิ่ม code
 const MongoClient = require('mongodb').MongoClient;
-// ให้เปลี่ยน rtarf02-05 ตามจำนวนเครื่อง
-var mongo_db_url = "mongodb://rtarf04:rtarf04@122.155.202.161:27017/rtarf04?authSource=rtarf04";
+
+const DB_NAME = 'rtarf04';
+var mongo_db_url = "mongodb://" + DB_NAME + ":" + DB_NAME + "@122.155.202.161:27017/" + DB_NAME + "?authSource=" + DB_NAME;
 // จบ  code
 const ObjectID = require('mongodb').ObjectID;
 
 const DIR = './uploads';
-const DB_NAME = 'rtarf04';
 const TB_NAME = 'files'
 
 router.get('/', (req, res) => {
@@ -43,13 +43,14 @@ router.get('/user-all', (req, res) => {
     connectMongoDBNoToken(res, async db => {
         let dbo = db.db(DB_NAME);
         const collection = dbo.collection('user');
-        let query = {
-        }
+        let query = {}
 
 
         let dataList = await collection.find(query).toArray();
         db.close();
-        res.send({ dataList });
+        res.send({
+            dataList
+        });
     });
 });
 
@@ -59,8 +60,8 @@ router.post('/register', (req, res) => {
 
     MongoClient.connect(
         mongo_db_url, {
-        useNewUrlParser: true
-    },
+            useNewUrlParser: true
+        },
         function (err, db) {
             if (err) {
                 res.sendStatus(404);
@@ -90,8 +91,8 @@ router.post('/login', (req, res) => {
 
     MongoClient.connect(
         mongo_db_url, {
-        useNewUrlParser: true
-    },
+            useNewUrlParser: true
+        },
         async function (err, db) {
             if (err) {
                 res.sendStatus(404);
@@ -104,11 +105,30 @@ router.post('/login', (req, res) => {
             }
             // เปลี่ยนเป็น  rtarf01-04 ตามเครื่องนักเรียน
             let dbo = db.db(DB_NAME);
+
             let item = await dbo.collection('user').findOne(query);
             db.close();
-            res.send({
-                item
-            });
+            if (item) {
+                var payload = {
+                    id: item._id,
+                    rank: item.rank,
+                    first_name: item.first_name,
+                    last_name: item.last_name
+                };
+                var token = jwt.sign(payload, "rtarf_secret");
+                res.send(
+                    JSON.stringify({
+                        status: true,
+                        token: token
+                    })
+                );
+            } else {
+                res.send({
+                    status: false
+                });
+            }
+
+
         }
     );
 });
@@ -116,8 +136,7 @@ router.post('/login', (req, res) => {
 
 function connectMongoDBNoToken(res, callback) {
     MongoClient.connect(
-        mongo_db_url,
-        {
+        mongo_db_url, {
             useNewUrlParser: true
         },
         function (err, db) {
@@ -147,7 +166,9 @@ let storage = multer.diskStorage({
 
 let upload = multer({
     storage: storage,
-    limits: { fileSize: 10000000 } // 10MB
+    limits: {
+        fileSize: 10000000
+    } // 10MB
 });
 
 router.get('/download/:fileId', (req, res) => {
@@ -155,8 +176,7 @@ router.get('/download/:fileId', (req, res) => {
 
     connectMongoDBNoToken(res, db => {
         let dbo = db.db(DB_NAME);
-        dbo.collection(TB_NAME).findOne(
-            {
+        dbo.collection(TB_NAME).findOne({
                 _id: ObjectID(fileId)
             },
             function (err, data) {
@@ -180,8 +200,7 @@ router.get('/preview/:fileId', (req, res) => {
 
     connectMongoDBNoToken(res, db => {
         let dbo = db.db(DB_NAME);
-        dbo.collection(TB_NAME).findOne(
-            {
+        dbo.collection(TB_NAME).findOne({
                 _id: ObjectID(fileId)
             },
             function (err, data) {
@@ -220,8 +239,7 @@ router.get('/preview/:fileId', (req, res) => {
 router.post('/uploadFile', upload.single('file'), function (req, res) {
     console.log("post");
     MongoClient.connect(
-        mongo_db_url,
-        {
+        mongo_db_url, {
             useNewUrlParser: true
         },
         function (err, db) {
