@@ -101,4 +101,63 @@ router.get('/get-by-owner', (req, res) => {
         });
     });
 });
+router.get('/get-by-user', (req, res) => {
+    const id = req.query.id;
+    connectMongoDBNoToken(res, async db => {
+        let dbo = db.db(DB_NAME);
+        const collection = dbo.collection(TB_NAME);
+        let unwind = {
+            $unwind: "$users_action"
+        };
+        let query = {
+            $match: {
+                "users_action._id": id,
+            }
+        }
+
+        // let dataList = await collection.find(query).toArray();
+        let dataList = await collection.aggregate([unwind, query]).toArray();
+        db.close();
+        res.send({
+            dataList
+        });
+    });
+});
+
+router.post('/update-action', (req, res) => {
+    let docId = req.body.docId;
+    let userId = req.body.userId;
+    let status = req.body.status;
+
+    connectMongoDBNoToken(res, async db => {
+        let dbo = db.db(DB_NAME);
+        const collection = dbo.collection(TB_NAME);
+
+        let query = {
+            "_id": ObjectID(docId),
+            "users_action._id": userId,
+        }
+
+        let updateCommand = {
+            $set: {
+                "users_action.$.status": status,
+                "users_action.$.action_date": new Date(),
+            }
+        }
+
+        let result = await collection.updateOne(query, updateCommand);
+
+        db.close();
+        if (result) {
+            res.send({
+                status: true,
+                result
+            });
+        } else {
+            res.send({
+                status: false
+            });
+        }
+    });
+});
 module.exports = router;
