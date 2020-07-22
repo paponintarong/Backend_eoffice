@@ -23,6 +23,8 @@ app.use('/', common);
 
 const document = require('./routes/document');
 app.use('/document', document);
+const lineNotify = require('./routes/line-notify');
+app.use('/line-notify', lineNotify);
 const port = 3000;
 app.listen(port, () => {
     console.log(`Running on http://localhost:${port}`);
