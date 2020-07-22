@@ -85,4 +85,20 @@ router.post('/update', (req, res) => {
         }
     });
 });
+router.get('/get-by-owner', (req, res) => {
+    const id = req.query.id;
+    connectMongoDBNoToken(res, async db => {
+        let dbo = db.db(DB_NAME);
+        const collection = dbo.collection(TB_NAME);
+        let query = {
+            "owner._id": id,
+        }
+
+        let dataList = await collection.find(query).toArray();
+        db.close();
+        res.send({
+            dataList
+        });
+    });
+});
 module.exports = router;
